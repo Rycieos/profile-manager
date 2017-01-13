@@ -95,7 +95,7 @@ main() {
     config_file="$2"
     shift 2
   else
-    config_file="${XDG_CONFIG_HOME:-"${HOME}/.config"}/profile-manager/config"
+    config_file="${XDG_CONFIG_HOME:="${HOME}/.config"}/profile-manager/config"
   fi
 
   if [ "$1" == "-q" ] || [ "$1" == "--quiet" ]; then
@@ -141,6 +141,10 @@ main() {
   if [ "${rerun}" == "true" ]; then
     exec "$@"
   fi
+
+  # Cleanup broken symlinks in home and config dirs
+  find -L "${HOME}" -maxdepth 1 -type l -delete
+  find -L "${XDG_CONFIG_HOME}" -maxdepth 1 -type l -delete
 }
 
 main "$@"
