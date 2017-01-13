@@ -157,7 +157,7 @@ main() {
   fi
 
   # Cleanup broken symlinks in home
-  find -L "${HOME}" -type l -exec test ! -e {} \; -delete
+  find "${HOME}" -type l -exec test ! -e {} \; -delete
 }
 
 main "$@"
