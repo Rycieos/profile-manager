@@ -81,6 +81,7 @@ install_repo() {
 }
 
 main() {
+  # Check bash version
   BASH="${BASH_VERSION%.*}"
   BASH_MAJOR="${BASH%.*}"
 
@@ -89,6 +90,12 @@ main() {
     echo >&2 "you're running ${BASH}, which doesn't support dictionary arrays"
     exit 1
   fi
+
+  # Check for git
+  hash git 2>/dev/null || {
+    echo >&2 "Git is not installed, can't proceed"
+    exit 1
+  }
 
   # Find config
   if [ "$1" == "-c" ]; then
@@ -104,8 +111,9 @@ main() {
 
   # Load config
   if [ -r "${config_file}" ]; then
+    # Load file into var
+    config="$(<"${config_file}")"
     # shellcheck source=config
-    config="$(cat "${config_file}")"
     . <(echo "${config}")
   else
     echo >&2 "Failed to load config file ${config_file}"
@@ -115,8 +123,13 @@ main() {
   # Get config data because we want our config to be easy:
   # We can use ~ for $HOME
   # We don't have to list our profiles because we can search for them
-  repo_dir="$(expand_tilde "${repo_dir}")"
   repo_list=($(echo "${config}" | sed -n 's/^\([A-Za-z0-9\._-]*\) *().*/\1/p' ))
+  repo_dir="$(expand_tilde "${repo_dir}")"
+
+  # Make repo_dir if it doesn't exist
+  if [ ! -d "${repo_dir}" ]; then
+    mkdir -p "${repo_dir}"
+  fi
 
   # Find where this script and config really are, in case of symlinks.
   # This won't fix every edge case, but most of them.
