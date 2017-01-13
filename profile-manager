@@ -120,6 +120,12 @@ main() {
     exit 1
   fi
 
+  # Check for mandatory settings
+  if [ -z "${repo_dir}" ]; then
+    echo >&2 "'repo_dir' must be set in config"
+    exit 1
+  fi
+
   # Get config data because we want our config to be easy:
   # We can use ~ for $HOME
   # We don't have to list our profiles because we can search for them
