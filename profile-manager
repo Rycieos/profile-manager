@@ -105,7 +105,8 @@ main() {
   # Load config
   if [ -r "${config_file}" ]; then
     # shellcheck source=config
-    . "${config_file}"
+    config="$(cat "${config_file}")"
+    . <(echo "${config}")
   else
     echo >&2 "Failed to load config file ${config_file}"
     exit 1
@@ -115,7 +116,7 @@ main() {
   # We can use ~ for $HOME
   # We don't have to list our profiles because we can search for them
   repo_dir="$(expand_tilde "${repo_dir}")"
-  repo_list=($(sed -n 's/^\([A-Za-z0-9\._-]*\) *().*/\1/p' < "${config_file}"))
+  repo_list=($(echo "${config}" | sed -n 's/^\([A-Za-z0-9\._-]*\) *().*/\1/p' ))
 
   # Find where this script and config really are, in case of symlinks.
   # This won't fix every edge case, but most of them.
@@ -142,9 +143,8 @@ main() {
     exec "$@"
   fi
 
-  # Cleanup broken symlinks in home and config dirs
-  find -L "${HOME}" -maxdepth 1 -type l -delete
-  find -L "${XDG_CONFIG_HOME}" -maxdepth 1 -type l -delete
+  # Cleanup broken symlinks in home
+  find -L "${HOME}" -type l -exec test ! -e {} \; -delete
 }
 
 main "$@"
