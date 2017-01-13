@@ -1,0 +1,146 @@
+#!/bin/bash
+
+install() {
+  git clone "$1" "$2" >/dev/null 2>&1
+}
+
+check_update() {
+  commits=$(git rev-list --left-only --count origin/master...master)
+  [ $commits -eq 0 ] || log="$(git log --oneline master..origin/master)"
+  return $commits
+}
+
+update() {
+  git pull -q
+}
+
+link_repo() {
+  local files repo repo_url
+  declare -A files
+
+  repo="$1"
+  $repo
+
+  for source_file in "${!files[@]}"; do
+    dest_file="$(expand_tilde "${files["${source_file}"]}")"
+
+    # Make dir first
+    if [ ! -d "${dest_file%/*}" ]; then
+      mkdir -p "${dest_file%/*}" || {
+        echo "Cannot make directory ${dest_file%/*} for file ${dest_file}" >&2
+        continue
+      }
+    fi
+
+    # Test if this file is this script or config file
+    if [ "${source_file}" == "${script_file}" ] ||
+       [ "${dest_file}"   == "${script_file}" ] ||
+       [ "${source_file}" == "${config_file}" ] ||
+       [ "${dest_file}"   == "${config_file}" ]; then
+      rerun="true"
+    fi
+
+    ln -fs "${repo_dir}/${repo}/${source_file}" "${dest_file}"
+  done
+}
+
+is_installed() {
+  [ -d "${repo_dir}/${repo}" ]
+}
+
+expand_tilde() {
+  echo "${1/#\~/$HOME}"
+}
+
+update_repo() {
+  local commits log repo
+  repo="$1"
+  cd "${repo_dir}/${repo}"
+
+  check_update || {
+    update
+    link_repo "${repo}"
+
+    [ -n "${printing}" ] ||
+      printf "updated %s: %i commit(s)\n%s\n\n" "${repo}" "${commits}" "${log}"
+  }
+}
+
+install_repo() {
+  local files repo repo_url
+  declare -A files
+
+  repo="$1"
+  cd "${repo_dir}"
+  $repo
+
+  install "${repo_url}" "${repo}"
+  link_repo "${repo}"
+
+  [ -n "${printing}" ] || echo "installed ${repo}"
+}
+
+main() {
+  BASH="${BASH_VERSION%.*}"
+  BASH_MAJOR="${BASH%.*}"
+
+  if [ "${BASH_MAJOR}" -lt 4 ]; then
+    echo "ERROR: ${0} requires Bash version >= 4.0" >&2
+    echo >&2 "you're running ${BASH}, which doesn't support dictionary arrays"
+    exit 1
+  fi
+
+  # Find config
+  if [ "$1" == "-c" ]; then
+    config_file="$2"
+    shift 2
+  else
+    config_file="${XDG_CONFIG_HOME:-"${HOME}/.config"}/profile-manager/config"
+  fi
+
+  if [ "$1" == "-q" ] || [ "$1" == "--quiet" ]; then
+    printing="no"
+  fi
+
+  # Load config
+  if [ -r "${config_file}" ]; then
+    # shellcheck source=config
+    . "${config_file}"
+  else
+    echo >&2 "Failed to load config file ${config_file}"
+    exit 1
+  fi
+
+  # Get config data because we want our config to be easy:
+  # We can use ~ for $HOME
+  # We don't have to list our profiles because we can search for them
+  repo_dir="$(expand_tilde "${repo_dir}")"
+  repo_list=($(sed -n 's/^\([A-Za-z0-9\._-]*\) *().*/\1/p' < "${config_file}"))
+
+  # Find where this script and config really are, in case of symlinks.
+  # This won't fix every edge case, but most of them.
+  script_file="$0"
+  if [ -h "${script_file}" ]; then
+    script_file="$(readlink -f "${script_file}")"
+  fi
+  if [ -h "${config_file}" ]; then
+    config_file="$(readlink -f "${config_file}")"
+  fi
+
+  # Update/Install repos
+  for repo in "${repo_list[@]}"; do
+    if is_installed "${repo}"; then
+      update_repo "${repo}" &
+    else
+      install_repo "${repo}" &
+    fi
+  done
+  wait
+
+  # Rerun if we modify config or ourselves
+  if [ "${rerun}" == "true" ]; then
+    exec "$@"
+  fi
+}
+
+main "$@"
