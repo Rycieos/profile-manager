@@ -34,7 +34,7 @@ link_repo() {
     # Make dir first
     if [ ! -d "${dest_file%/*}" ]; then
       mkdir -p "${dest_file%/*}" || {
-        echo >&2 "Cannot make directory ${dest_file%/*} for file ${dest_file}"
+        error "Cannot make directory ${dest_file%/*} for file ${dest_file}"
         continue
       }
     fi
@@ -57,6 +57,10 @@ is_installed() {
 
 expand_tilde() {
   echo "${1/#\~/$HOME}"
+}
+
+error() {
+  echo >&2 "Error:" "$@"
 }
 
 update_repo() {
@@ -87,7 +91,7 @@ install_repo() {
   # Install
   cd "${repo_dir}"
   install "${repo_url}" "${repo}" || {
-    echo >&2 "Failed to install ${repo}"
+    error "Failed to install ${repo}"
     return 1
   }
   link_repo "${repo}"
@@ -106,33 +110,55 @@ dependency() {
   return $needed
 }
 
+print_help() {
+  echo "\
+Usage: $(basename "$0") [-c|--config config-file] [-q|-quiet] [-h|--help]
+  See the README for help on the config file"
+}
+
 main() {
   # Check bash version
   BASH="${BASH_VERSION%.*}"
   BASH_MAJOR="${BASH%.*}"
 
   if [ "${BASH_MAJOR}" -lt 4 ]; then
-    echo >&2 "ERROR: ${0} requires Bash version >= 4.0"
-    echo >&2 "you're running ${BASH}, which doesn't support dictionary arrays"
+    error "${0} requires Bash version >= 4.0"
+    error "you're running ${BASH}, which doesn't support dictionary arrays"
     exit 1
   fi
 
   # Check for git
   hash git 2>/dev/null || {
-    echo >&2 "Git is not installed, can't proceed"
+    error "git is not installed, can't proceed"
     exit 1
   }
 
-  # Find config
-  if [ "$1" == "-c" ]; then
-    config_file="$2"
-    shift 2
-  else
-    config_file="${XDG_CONFIG_HOME:="${HOME}/.config"}/profile-manager/config"
-  fi
+  # Store arguments for calling ourselves later
+  args=("$@")
 
-  if [ "$1" == "-q" ] || [ "$1" == "--quiet" ]; then
-    printing="no"
+  # Parse arguments
+  while [ -n "$1" ]; do
+    case "$1" in
+      -c|--config)
+        config_file="$2"
+        shift
+        ;;
+      -q|-quiet)
+        printing="no"
+        ;;
+      -h|--help)
+        print_help
+        ;;
+      *)
+        error "$1 not a valid argument"
+        print_help
+    esac
+    shift
+  done
+
+  # Find config
+  if [ -z "${config_file}" ]; then
+    config_file="${XDG_CONFIG_HOME:="${HOME}/.config"}/profile-manager/config"
   fi
 
   # Load config
@@ -142,13 +168,13 @@ main() {
     # shellcheck source=config
     . <(echo "${config}")
   else
-    echo >&2 "Failed to load config file ${config_file}"
+    error "failed to load config file ${config_file}"
     exit 1
   fi
 
   # Check for mandatory settings
   if [ -z "${repo_dir}" ]; then
-    echo >&2 "'repo_dir' must be set in config"
+    error "'repo_dir' must be set in config"
     exit 1
   fi
 
@@ -185,11 +211,12 @@ main() {
 
   # Rerun if we modify config or ourselves
   if [ "${rerun}" == "true" ]; then
-    exec "$0" "$@"
+    [ -n "${printing}" ] || echo "Relaunching..."
+    exec "$0" "${args[@]}"
   fi
 
   # Cleanup broken symlinks in home
-  find "${HOME}" -type l -exec test ! -e {} \; -delete
+  find "${HOME}" -type l -exec test ! -e {} \; -exec rm {} \;
 }
 
 main "$@"
