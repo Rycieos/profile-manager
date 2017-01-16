@@ -15,7 +15,7 @@ update() {
 }
 
 link_repo() {
-  local files repo repo_url
+  local files depends repo repo_url
   declare -A files
 
   repo="$1"
@@ -27,7 +27,7 @@ link_repo() {
     # Make dir first
     if [ ! -d "${dest_file%/*}" ]; then
       mkdir -p "${dest_file%/*}" || {
-        echo "Cannot make directory ${dest_file%/*} for file ${dest_file}" >&2
+        echo >&2 "Cannot make directory ${dest_file%/*} for file ${dest_file}"
         continue
       }
     fi
@@ -67,17 +67,36 @@ update_repo() {
 }
 
 install_repo() {
-  local files repo repo_url
+  local files depends repo repo_url
   declare -A files
 
+  # Get repo info
   repo="$1"
-  cd "${repo_dir}"
   $repo
 
-  install "${repo_url}" "${repo}"
+  # Check dependencies
+  dependency "${repo}" || return
+
+  # Install
+  cd "${repo_dir}"
+  install "${repo_url}" "${repo}" || {
+    echo >&2 "Failed to install ${repo}"
+    return 1
+  }
   link_repo "${repo}"
 
   [ -n "${printing}" ] || echo "installed ${repo}"
+}
+
+dependency() {
+  needed=0
+  for depend in "${depends[@]}"; do
+    hash "${depend}" 2>/dev/null || {
+      [ -n "${printing}" ] || echo "${depend} is not installed for ${repo}"
+      needed=1
+    }
+  done
+  return $needed
 }
 
 main() {
@@ -86,7 +105,7 @@ main() {
   BASH_MAJOR="${BASH%.*}"
 
   if [ "${BASH_MAJOR}" -lt 4 ]; then
-    echo "ERROR: ${0} requires Bash version >= 4.0" >&2
+    echo >&2 "ERROR: ${0} requires Bash version >= 4.0"
     echo >&2 "you're running ${BASH}, which doesn't support dictionary arrays"
     exit 1
   fi
