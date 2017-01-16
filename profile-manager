@@ -5,6 +5,13 @@ install() {
 }
 
 check_update() {
+  # First just check the HEAD commits. This saves a ton of time, as it is
+  # the only commit we care about. If we find that there is a difference,
+  # we can do a full fetch to get the details
+  [ $(git ls-remote --heads origin master | sed 's/[^0-9a-f].*$//') == \
+    $(git rev-parse master) ] && return 0
+
+  git fetch >/dev/null 2>&1
   commits=$(git rev-list --left-only --count origin/master...master)
   [ $commits -eq 0 ] || log="$(git log --oneline master..origin/master)"
   return $commits
