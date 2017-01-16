@@ -42,8 +42,8 @@ link_repo() {
     # Test if this file is this script or config file
     if [ "${source_file}" == "${script_file}" ] ||
        [ "${dest_file}"   == "${script_file}" ] ||
-       [ "${source_file}" == "${config_file}" ] ||
-       [ "${dest_file}"   == "${config_file}" ]; then
+       [ "${dest_file}"   == "${config_file}" ] ||
+       [ "${repo_dir}/${repo}/${source_file}" == "${config_file}" ]; then
       rerun="true"
     fi
 
@@ -185,7 +185,7 @@ main() {
 
   # Rerun if we modify config or ourselves
   if [ "${rerun}" == "true" ]; then
-    exec "$@"
+    exec "$0" "$@"
   fi
 
   # Cleanup broken symlinks in home
