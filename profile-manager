@@ -40,7 +40,8 @@ link_repo() {
     fi
 
     # Test if this file is this script or config file
-    if [ "${source_file}" == "${script_file}" ] ||
+    if [ -z "${force_link}" ] &&
+       [ "${source_file}" == "${script_file}" ] ||
        [ "${dest_file}"   == "${script_file}" ] ||
        [ "${dest_file}"   == "${config_file}" ] ||
        [ "${repo_dir}/${repo}/${source_file}" == "${config_file}" ]; then
@@ -68,13 +69,15 @@ update_repo() {
   repo="$1"
   cd "${repo_dir}/${repo}"
 
-  check_update || {
+  if ! check_update; then
     update
     link_repo "${repo}"
 
     [ -n "${printing}" ] ||
       printf "updated %s: %i commit(s)\n%s\n\n" "${repo}" "${commits}" "${log}"
-  }
+  elif [ -n "${force_link}" ]; then
+    link_repo "${repo}"
+  fi
 }
 
 install_repo() {
@@ -143,11 +146,14 @@ main() {
         config_file="$2"
         shift
         ;;
-      -q|-quiet)
+      -q|--quiet)
         printing="no"
         ;;
       -h|--help)
         print_help
+        ;;
+      -f|--force-link)
+        force_link=true
         ;;
       *)
         error "$1 not a valid argument"
