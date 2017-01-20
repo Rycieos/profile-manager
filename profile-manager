@@ -13,7 +13,7 @@ check_update() {
 
   git fetch >/dev/null 2>&1
   commits=$(git rev-list --left-only --count origin/master...master)
-  [ $commits -eq 0 ] || log="$(git log --oneline master..origin/master)"
+  [ $commits -eq 0 ] || log="$(git log --oneline master..origin/master)\n"
   return $commits
 }
 
@@ -40,11 +40,11 @@ link_repo() {
     fi
 
     # Test if this file is this script or config file
-    if [ -z "${force_link}" ] &&
-       [ "${source_file}" == "${script_file}" ] ||
-       [ "${dest_file}"   == "${script_file}" ] ||
-       [ "${dest_file}"   == "${config_file}" ] ||
-       [ "${repo_dir}/${repo}/${source_file}" == "${config_file}" ]; then
+    if [[ -z "${force}" &&
+        ( "${source_file}" == "${script_file}" ||
+          "${dest_file}"   == "${script_file}" ||
+          "${dest_file}"   == "${config_file}" ||
+          "${repo_dir}/${repo}/${source_file}" == "${config_file}" ) ]]; then
       rerun="true"
     fi
 
@@ -65,19 +65,23 @@ error() {
 }
 
 update_repo() {
-  local commits log repo
+  local commits log repo update
   repo="$1"
   cd "${repo_dir}/${repo}"
 
-  if ! check_update; then
+  if ! check_update || [ -n "${force}" ]; then
     update
     link_repo "${repo}"
 
-    [ -n "${printing}" ] ||
-      printf "updated %s: %i commit(s)\n%s\n\n" "${repo}" "${commits}" "${log}"
-  elif [ -n "${force_link}" ]; then
-    link_repo "${repo}"
+    if declare -f post_update >/dev/null; then
+      post_update
+    fi
+
+    printf "updated %s: %i commit(s)\n%s\n" "${repo}" "${commits}" "${log}"
   fi
+
+  # Send back an error code if we need to rerun
+  [ -z "${rerun}" ]
 }
 
 install_repo() {
@@ -99,15 +103,19 @@ install_repo() {
   }
   link_repo "${repo}"
 
-  [ -n "${printing}" ] || echo "installed ${repo}"
+  if declare -f post_install >/dev/null; then
+    post_install
+  fi
+
+  echo "installed ${repo}"
 }
 
 dependency() {
   needed=0
   for depend in "${depends[@]}"; do
     hash "${depend}" 2>/dev/null || {
-      [ -n "${printing}" ] || echo "${depend} is not installed for ${repo}"
-      needed=1
+      echo "${depend} is not installed for ${repo}"
+      ((needed++))
     }
   done
   return $needed
@@ -147,13 +155,13 @@ main() {
         shift
         ;;
       -q|--quiet)
-        printing="no"
+        exec >/dev/null
         ;;
       -h|--help)
         print_help
         ;;
-      -f|--force-link)
-        force_link=true
+      -f|--force)
+        force=true
         ;;
       *)
         error "$1 not a valid argument"
@@ -212,12 +220,19 @@ main() {
     else
       install_repo "${repo}" &
     fi
+    pids+="$! "
   done
-  wait
+
+  # Wait for all subshells
+  # If any return non-zero, we need to relaunch
+  for pid in $pids; do
+    wait $pid || rerun="true"
+  done
 
   # Rerun if we modify config or ourselves
   if [ "${rerun}" == "true" ]; then
-    [ -n "${printing}" ] || echo "Relaunching..."
+    echo "Relaunching..."
+    exit 1
     exec "$0" "${args[@]}"
   fi
 
@@ -225,4 +240,4 @@ main() {
   find "${HOME}" -type l -exec test ! -e {} \; -exec rm {} \;
 }
 
-main "$@"
+[[ $BASH_SOURCE != $0 ]] || main "$@"
