@@ -13,7 +13,7 @@ check_update() {
 
   git fetch >/dev/null 2>&1
   commits=$(git rev-list --left-only --count origin/master...master)
-  [ $commits -eq 0 ] || log="$(git log --oneline master..origin/master)\n"
+  [ $commits -eq 0 ] || log="$(git log --oneline master..origin/master)"
   return $commits
 }
 
@@ -77,7 +77,7 @@ update_repo() {
       post_update
     fi
 
-    printf "updated %s: %i commit(s)\n%s\n" "${repo}" "${commits}" "${log}"
+    printf "updated %s: %i commit(s)\n%s\n\n" "${repo}" "${commits}" "${log}"
   fi
 
   # Send back an error code if we need to rerun
