@@ -1,12 +1,12 @@
 # profile-manager
 
-profile-manager syncs git projects to computers, keeping all profiles
+profile-manager syncs git projects to hosts, keeping all profiles
 up-to-date. It is designed with bootstrapping and auto-running in mind.
 
 While profile-manager has many features, it was designed to not "do everything
 for you". Bootstrapping, auto-running, and plugins are all up to the user. This
-is because while searching for the perfect dot-file manager I found many that
-did what I wanted, but fell short because they forced a certain way or file
+is because, while searching for the perfect dot-file manager, I found many that
+did what I wanted, but fell short because they forced a certain usage or file
 setup that didn't work for me. This project aims to solve those problems.
 
 ## Options
@@ -95,11 +95,11 @@ clone. Don't use the ssh protocol unless you will be setting up your ssh keys
 on every machine before running your bootstrap.
 
 To be useful, every repo must have lines in the `files` array. The first part
-of the line is the filename of the file you want to have linked, from the repo
-root. The second part is the location that you want it to be linked to. For
-example, the "voom" file above is a script in the repo root. I want to be able
-to run it when I want, so I link it to "~/bin/voom". The link fill force
-replace files, so make sure you don't have any naming conflicts.
+of the line is the filename of the file you want to have linked, relative to
+the repo root. The second part is the location that you want it to be linked
+to. For example, the "voom" file above is a script in the repo root. I want to
+be able to run it when I want, so I link it to "~/bin/voom". The link will
+force replace files, so make sure you don't have any naming conflicts.
 
 Optionally, the `depends` array can be set. Each value in the array is a
 command that is searched for. If any are not found on the machine, the repo
