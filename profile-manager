@@ -232,7 +232,6 @@ main() {
   # Rerun if we modify config or ourselves
   if [ "${rerun}" == "true" ]; then
     echo "Relaunching..."
-    exit 1
     exec "$0" "${args[@]}"
   fi
 
