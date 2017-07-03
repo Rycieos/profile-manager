@@ -85,6 +85,12 @@ voom() {
   depends=(
     "vim"
   )
+  voom_post_install() {
+    voom
+  }
+  voom_post_update() {
+    voom update
+  }
 }
 ```
 
@@ -104,6 +110,10 @@ force replace files, so make sure you don't have any naming conflicts.
 Optionally, the `depends` array can be set. Each value in the array is a
 command that is searched for. If any are not found on the machine, the repo
 will not be installed.
+
+There are post install and update hooks, that will run after their respective
+actions. The must be prefixed with the name of the plugin, like in the example
+above.
 
 See [my config](https://github.com/Rycieos/dot-files/blob/master/profile-manager/config) for more examples.
 
@@ -135,6 +145,5 @@ like such:
 In this way, it works similarly to [voom](https://github.com/airblade/voom).
 
 If you run profile-manager automatically, then it would update the plugins
-automatically as well. Personally, I don't need my plugins cutting edge, so I
-install voom and run voom update as I please.
+automatically as well.
 

@@ -73,8 +73,8 @@ update_repo() {
     update
     link_repo "${repo}"
 
-    if declare -f post_update >/dev/null; then
-      post_update
+    if declare -f "${repo}_post_update" >/dev/null; then
+      "${repo}_post_update"
     fi
 
     printf "updated %s: %i commit(s)\n%s\n\n" "${repo}" "${commits}" "${log}"
@@ -103,8 +103,8 @@ install_repo() {
   }
   link_repo "${repo}"
 
-  if declare -f post_install >/dev/null; then
-    post_install
+  if declare -f "${repo}_post_install" >/dev/null; then
+    "${repo}_post_install"
   fi
 
   echo "installed ${repo}"
