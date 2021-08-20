@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 install() {
   git clone "$1" "$2" >/dev/null 2>&1
@@ -236,7 +236,7 @@ main() {
   fi
 
   # Cleanup broken symlinks in home
-  find "${HOME}" -type l -exec test ! -e {} \; -exec rm {} \;
+  find "${HOME}" -type l -exec test ! -e {} \; -exec rm {} \; 2>/dev/null
 }
 
 [[ $BASH_SOURCE != $0 ]] || main "$@"
